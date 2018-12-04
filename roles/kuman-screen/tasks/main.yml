@@ -1,0 +1,67 @@
+---
+- name: Configure
+  lineinfile:
+    path: /boot/config.txt
+    regexp: '.*dtoverlay=piscreen.*'
+    line: 'dtoverlay=piscreen,speed=16000000,rotate=0'
+  register: screen_boot_config
+
+- name: Remove file
+  file:
+    path: /etc/X11/xorg.conf.d/40-libinput.conf
+    state: absent
+  register: screen_config_rm
+  
+- name: Create dir
+  file:
+    path: /etc/X11/xorg.conf.d
+    state: directory
+    
+- name: Install XServer
+  apt: name={{ item }} state=present
+  with_items:
+  - xserver-xorg-video-fbturbo
+  - xserver-xorg-input-evdev
+  register: screen_pkgs
+
+- name: Copy files
+  copy:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+  with_items:
+  - { src: tft35a-overlay.dtb, dest: /boot/overlays/tft35a-overlay.dtb }
+  - { src: tft35a-overlay.dtb, dest: /boot/overlays/tft35a.dtbo }
+  - { src: 99-calibration.conf-35, dest: /etc/X11/xorg.conf.d/99-calibration.conf }
+  - { src: 99-fbturbo.conf, dest: /etc/X11/xorg.conf.d/99-fbturbo.conf }
+  - { src: cmdline.txt, dest: /boot/cmdline.txt }
+  - { src: inittab, dest: /etc/inittab }
+  register: screen_config_add
+
+- name: Copy another file
+  copy:
+    src: /usr/share/X11/xorg.conf.d/10-evdev.conf
+    dest: /usr/share/X11/xorg.conf.d/45-evdev.conf
+    remote_src: yes
+  register: screen_evdev
+
+- name: Reboot
+  shell: sleep 2 && shutdown -r now "Ansible reboot"
+  async: yes
+  poll: no
+  when: >
+    (screen_boot_config is changed)
+    or (screen_config_rm is changed)
+    or (screen_config_add is changed)
+    or (screen_pkgs is changed)
+    or (screen_evdev is changed)
+  register: screen_reboot
+
+- name: Wait for the server to finish rebooting.
+  wait_for_connection:
+    connect_timeout: 5
+    sleep: 5
+    delay: 20
+    timeout: 60
+  when: screen_reboot is changed
+
+### sudo apt install --no-install-recommends xserver-xorg xinit

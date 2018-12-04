@@ -1,0 +1,7 @@
+# Configuration of the Pi.
+---
+- hosts: pi
+  roles:
+  - basic
+  - kuman-screen
+  - camera

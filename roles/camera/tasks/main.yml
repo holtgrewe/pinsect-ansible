@@ -1,0 +1,28 @@
+# Enabling camera.
+---
+
+- name: Configure for camera.
+  lineinfile:
+    path: /boot/config.txt
+    regexp: "{{ item.regexp }}"
+    line: "{{ item.line }}"
+  with_items:
+  - { regexp: ".*start_x=.*", line: "start_x=1" }
+  - { regexp: ".*gpu_mem=.*", line: "gpu_mem=128" }
+  - { regexp: ".*disable_camera_led=.*", line: "disable_camera_led=1" }
+  register: camera_config
+
+- name: Reboot
+  shell: sleep 2 && shutdown -r now "Ansible reboot"
+  async: yes
+  poll: no
+  when: camera_config is changed
+  register: camera_reboot
+
+- name: Wait for the server to finish rebooting.
+  wait_for_connection:
+    connect_timeout: 5
+    sleep: 5
+    delay: 20
+    timeout: 60
+  when: camera_reboot is changed

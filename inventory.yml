@@ -1,0 +1,9 @@
+---
+all:
+  hosts:
+    pi:
+      ansible_host: '192.168.2.156'
+      ansible_user: pi
+      ansible_become_user: root
+      ansible_become_metohd: sudo
+      ansible_become: yes
